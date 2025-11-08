@@ -31,6 +31,8 @@ class MultilayerPerceptron(nn.Module):
 
         activations = config.get("activations", None)
         output_activation = config.get("output_activation", None)
+        dropout = config.get("dropout", 0.0)
+        batch_norm = config.get("batch_norm", False)
 
         n_layers = len(layers)
         activations = self._resolve_activations(activations, n_layers)
@@ -41,9 +43,15 @@ class MultilayerPerceptron(nn.Module):
         for i, n_out in enumerate(layers):
             hidden.append(nn.Linear(n_prev, n_out))
             
+            if batch_norm and i < n_layers - 1:
+                hidden.append(nn.BatchNorm1d(n_out))
+            
             act = activations[i]
             if act is not None:
                 hidden.append(act())
+                
+            if dropout > 0.0 and i < n_layers - 1:
+                hidden.append(nn.Dropout(dropout))
                 
             n_prev = n_out
 
@@ -98,7 +106,9 @@ class MultilayerPerceptron(nn.Module):
 #     "n_input": 32,
 #     "layers": [64, 128, 64, 10],
 #     "activations": ["ReLU", "GELU", "ReLU", None],
-#     "output_activation": "Sigmoid"
+#     "output_activation": "Sigmoid",
+#     "dropout": 0.3,
+#     "batch_norm": True,
 # }
 # model = MultilayerPerceptron(cfg)
 # # model = MultilayerPerceptron(".scratch/config.yaml")
