@@ -31,7 +31,6 @@ class DataLoader:
         return self
 
     def drop_unnecessary_columns(self):
-        """Drop optional high-missing/low-information columns if present; ignore if absent."""
         columns_to_drop = ['examide', 'citoglipton', 'weight']
         existing = [c for c in columns_to_drop if c in self.df.columns]
         if existing:
@@ -153,7 +152,7 @@ class DataLoader:
     def select_features(self, correlation_threshold=0.01, importance_threshold=0.001):
         print("Performing feature selection")
         
-        # Define target and remove ALL diabetesMed-derived columns from features to prevent leakage
+        # Define target and remove columns related to diabetesMed
         y = self.df['diabetesMed|Yes']
         diabetes_cols = [c for c in self.df.columns if c.startswith('diabetesMed|')]
         X = self.df.drop(columns=diabetes_cols)
@@ -180,7 +179,6 @@ class DataLoader:
         ].index.tolist()
         
         self.selected_features = list(set(correlated_features) | set(important_features))
-        # Remove any diabetesMed derived one-hot columns to avoid target leakage
         self.selected_features = [f for f in self.selected_features if not f.startswith('diabetesMed|')]
             
         print(f"Selected {len(self.selected_features)} features")
@@ -226,7 +224,7 @@ class DataLoader:
         print("DIABETES DATA PROCESSING PIPELINE")
         print("="*80)
 
-        # 1) Raw load + core preprocessing
+        # 1) Main preprocessing using all the functions
         (self.load_data()
              .drop_unnecessary_columns()
              .convert_ids_to_categorical()
@@ -235,13 +233,13 @@ class DataLoader:
              .cap_outliers_iqr()
              .one_hot_encode())
 
-        # 2) Define target and remove leaky columns BEFORE split
+        # 2) Define target and remove leaky columns
         if 'diabetesMed|Yes' not in self.df.columns:
             raise ValueError("Target column 'diabetesMed|Yes' not found after encoding.")
 
         y_full = self.df['diabetesMed|Yes']
 
-        # drop any one-hot columns derived from specific diabetes medications or the target/change
+        # Drop any one-hot columns derived from specific diabetes medications or the target/change
         leaky_prefixes = [
             'diabetesMed', 'change', 'insulin', 'metformin', 'glyburide', 'glipizide',
             'glyburide.metformin', 'nateglinide', 'pioglitazone', 'rosiglitazone',
@@ -253,12 +251,12 @@ class DataLoader:
             print(f"Dropping leaky medication-related columns: {len(leaky_cols)}")
         X_full = self.df.drop(columns=leaky_cols + ['diabetesMed|Yes'])
 
-        # 3) Train/Test split BEFORE feature selection
+        # 3) Train/Test split
         X_train_df, X_test_df, y_train_s, y_test_s = train_test_split(
             X_full, y_full, test_size=self.test_size, random_state=self.random_state, stratify=y_full
         )
 
-        # 4) Feature selection using ONLY training data
+        # 4) Feature selection using only training data
         selected = self._select_features_train(X_train_df, y_train_s)
         self.selected_features = selected
 
@@ -268,7 +266,7 @@ class DataLoader:
 
 
 
-        # 6) Optionally drop duplicates on train only
+        # 6) Drop duplicates on train only
         print(f"Shape before dropping duplicates (train): {X_train_df.shape}")
         X_train_df = X_train_df.drop_duplicates()
         y_train_s = y_train_s.loc[X_train_df.index]
@@ -291,8 +289,8 @@ class DataLoader:
     def _select_features_train(self, X_train_df: pd.DataFrame, y_train_s: pd.Series,
                                 correlation_threshold: float = 0.03,
                                 importance_threshold: float = 0.001) -> list:
-        """Select features based on correlation and RandomForest importance using ONLY training data."""
-        # Drop zero-variance (constant) columns to avoid NaN/inf in correlation
+
+        # Drop zero-variance columns to avoid NaN in correlation
         std = X_train_df.std(numeric_only=True)
         non_constant_cols = std[std > 0].index
         dropped_zero_var = X_train_df.shape[1] - len(non_constant_cols)
@@ -300,7 +298,7 @@ class DataLoader:
             print(f"Dropped {dropped_zero_var} zero-variance columns from train before correlation")
         X_train_nc = X_train_df[non_constant_cols]
 
-        # Correlation with target (absolute), suppress runtime warnings from divide-by-zero internally
+        # Correlation with target (absolute)
         with np.errstate(invalid='ignore', divide='ignore'):
             corr = X_train_nc.corrwith(y_train_s).abs().fillna(0.0).sort_values(ascending=False)
         corr_features = corr[corr > correlation_threshold].index.tolist()

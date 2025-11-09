@@ -79,7 +79,7 @@ class MultilayerPerceptron(nn.Module):
     def forward(self, x):
         if self.skip_connections:
             out = x
-            for layer in self.main:  # <- use self.main, not self.layers
+            for layer in self.main:
                 out = layer(out)
             return out
         else:
