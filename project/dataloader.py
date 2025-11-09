@@ -150,7 +150,7 @@ class DataLoader:
         print(f"One-hot encoded: {self.df.shape[1]} columns")
         return self
     
-    def select_features(self, correlation_threshold=0.05, importance_threshold=0.005):
+    def select_features(self, correlation_threshold=0.01, importance_threshold=0.001):
         print("Performing feature selection")
         
         # Define target and remove ALL diabetesMed-derived columns from features to prevent leakage
@@ -263,8 +263,10 @@ class DataLoader:
         self.selected_features = selected
 
         # 5) Apply selected features to both splits
-        X_train_df = X_train_df[selected]
-        X_test_df = X_test_df[selected]
+        X_train_df = X_train_df#[selected]
+        X_test_df = X_test_df#[selected]
+
+
 
         # 6) Optionally drop duplicates on train only
         print(f"Shape before dropping duplicates (train): {X_train_df.shape}")
@@ -287,8 +289,8 @@ class DataLoader:
         return X_train, X_test, y_train, y_test, n_features
 
     def _select_features_train(self, X_train_df: pd.DataFrame, y_train_s: pd.Series,
-                                correlation_threshold: float = 0.05,
-                                importance_threshold: float = 0.005) -> list:
+                                correlation_threshold: float = 0.03,
+                                importance_threshold: float = 0.001) -> list:
         """Select features based on correlation and RandomForest importance using ONLY training data."""
         # Drop zero-variance (constant) columns to avoid NaN/inf in correlation
         std = X_train_df.std(numeric_only=True)

@@ -16,7 +16,6 @@ from sklearn.metrics import (
 def train_model(model, X_train, y_train, X_val, y_val, device, epochs=50, lr=0.001, batch_size=128, pos_weight=None, verbose=False, log_wandb=False, patience=None, min_delta=0.0):
 
     model.to(device)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     train_losses = []
     val_losses = []
@@ -28,6 +27,12 @@ def train_model(model, X_train, y_train, X_val, y_val, device, epochs=50, lr=0.0
     
     for epoch in range(epochs):
         model.train()
+
+        n_pos = (y_train == 1).sum()
+        n_neg = (y_train == 0).sum()
+        pos_weight = torch.tensor([n_neg / n_pos], dtype=torch.float32).to(device)
+        criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
         permutation = torch.randperm(X_train.size()[0])
         running_train_loss = 0.0
         batches = 0

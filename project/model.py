@@ -72,7 +72,9 @@ class MultilayerPerceptron(nn.Module):
             hidden.append(self._get_activation(output_activation)())
             
         self.main = nn.Sequential(*hidden)
-        
+
+
+
 
     def forward(self, x):
         if self.skip_connections:
