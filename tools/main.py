@@ -101,4 +101,4 @@ def run (config_path, project, entity = None):
     for k in ["roc_auc", "sensitivity", "specificity", "accuracy", "precision", "f1"]:
         print(f"{k}: {result[k]:.4f}")
         
-run(".scratch/experiment_configs/#8.yaml", "zneus-project-1")
+run(".scratch/experiment_configs/11.yaml", "zneus-project-1", entity="ZNEUS-Diabetes")

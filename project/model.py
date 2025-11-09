@@ -11,13 +11,15 @@ class MultilayerPerceptron(nn.Module):
     def __init__(self, config):
 
         """
-        Configure MLP with a config from a .yaml file or a dictionary
-        
         config.yaml example:
         n_input: 16
-        layers: [4, 8, 2] <- number of neurons on each hidden layer
-        activations: [ReLU, Sigmoid, Tanh]
+        layers: [64, 128, 64, 10]
+        activations: [ReLU, GELU, ReLU, None]
         output_activation: Sigmoid
+        dropout: 0.3
+        batch_norm: True
+        skip_connections: True
+        bottleneck: True
         """
 
         super().__init__()
@@ -28,11 +30,15 @@ class MultilayerPerceptron(nn.Module):
         
         n_input = config["n_input"]
         layers = config["layers"]
+        self.layers = layers
 
         activations = config.get("activations", None)
         output_activation = config.get("output_activation", None)
         dropout = config.get("dropout", 0.0)
         batch_norm = config.get("batch_norm", False)
+
+        self.skip_connections = config.get("skip_connections", False)
+        bottleneck = config.get("bottleneck", False)
 
         n_layers = len(layers)
         activations = self._resolve_activations(activations, n_layers)
@@ -41,6 +47,13 @@ class MultilayerPerceptron(nn.Module):
         n_prev = n_input
         
         for i, n_out in enumerate(layers):
+
+            if bottleneck and i > 0 and i < len(layers) - 1:
+                bottleneck_dim = max(n_prev // 2, n_out // 2)
+                hidden.append(nn.Linear(n_prev, bottleneck_dim))
+                hidden.append(nn.ReLU())
+                n_prev = bottleneck_dim
+
             hidden.append(nn.Linear(n_prev, n_out))
             
             if batch_norm and i < n_layers - 1:
@@ -62,8 +75,13 @@ class MultilayerPerceptron(nn.Module):
         
 
     def forward(self, x):
-        logits = self.main(x)
-        return logits
+        if self.skip_connections:
+            out = x
+            for layer in self.main:  # <- use self.main, not self.layers
+                out = layer(out)
+            return out
+        else:
+            return self.main(x)
     
     def _load_config(self, path):
         # Load a .yaml config file
