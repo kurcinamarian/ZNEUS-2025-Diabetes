@@ -77,13 +77,7 @@ class MultilayerPerceptron(nn.Module):
 
 
     def forward(self, x):
-        if self.skip_connections:
-            out = x
-            for layer in self.main:
-                out = layer(out)
-            return out
-        else:
-            return self.main(x)
+        return self.main(x)
     
     def _load_config(self, path):
         # Load a .yaml config file
